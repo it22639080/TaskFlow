@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
+const BASE = process.env.NEXT_PUBLIC_API_URL || 'https://taskflow-3-a1dl.onrender.com'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
