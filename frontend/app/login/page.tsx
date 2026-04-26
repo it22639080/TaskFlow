@@ -40,7 +40,7 @@ export default function LoginPage() {
         <ul className="brand-features">
           <li>AI-powered priority suggestions</li>
           <li>Smart deadline email alerts</li>
-          <li>Subtask breakdown & progress</li>
+          <li>Subtask breakdown &amp; progress</li>
           <li>Secure JWT authentication</li>
         </ul>
       </div>
@@ -83,8 +83,8 @@ export default function LoginPage() {
           </form>
 
           <div className="auth-switch">
-   have an account? <Link href="/register">Create one</Link>
-</div>
+            {"Don't have an account?"} <Link href="/register">Create one</Link>
+          </div>
         </div>
       </div>
     </div>
