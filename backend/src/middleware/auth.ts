@@ -7,8 +7,15 @@ export interface AuthRequest extends Request {
 
 export function authenticate(req: AuthRequest, res: Response, next: NextFunction) {
   try {
-    const token = req.cookies?.access_token
+    let token = req.cookies?.access_token
+
+    if (!token) {
+      const authHeader = req.headers.authorization
+      if (authHeader?.startsWith('Bearer ')) token = authHeader.slice(7)
+    }
+
     if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
+
     req.user = verifyAccessToken(token)
     next()
   } catch {
