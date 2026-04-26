@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL || 'https://taskflow-3-a1dl.onrender.com'
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -6,22 +6,49 @@ export class ApiError extends Error {
   }
 }
 
+// In-memory token store (survives re-renders, cleared on page refresh)
+let accessToken: string | null = null
+
+export function setAccessToken(token: string | null) {
+  accessToken = token
+}
+
+export function getAccessToken() {
+  return accessToken
+}
+
 async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(init?.headers as Record<string, string> ?? {}),
+  }
+
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
   const res = await fetch(`${BASE}${path}`, {
     credentials: 'include',
-    headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+    headers,
     ...init,
   })
 
   if (res.status === 401) {
-    // try refresh
+    // Try refresh
     const refresh = await fetch(`${BASE}/api/auth/refresh`, {
-      method: 'POST', credentials: 'include',
+      method: 'POST',
+      credentials: 'include',
     })
     if (refresh.ok) {
+      const data = await refresh.json()
+      setAccessToken(data.accessToken)
+
       const res2 = await fetch(`${BASE}${path}`, {
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json', ...(init?.headers ?? {}) },
+        headers: {
+          ...headers,
+          'Authorization': `Bearer ${data.accessToken}`,
+        },
         ...init,
       })
       if (!res2.ok) {
@@ -30,6 +57,7 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
       }
       return res2.json()
     }
+    setAccessToken(null)
     throw new ApiError(401, 'Unauthorized')
   }
 
@@ -43,30 +71,38 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 
 // Auth
 export const authApi = {
-  register: (data: { name: string; email: string; password: string }) =>
-    apiFetch<{ user: User }>('/api/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+  register: async (data: { name: string; email: string; password: string }) => {
+    const result = await apiFetch<{ user: User; accessToken: string }>('/api/auth/register', {
+      method: 'POST', body: JSON.stringify(data),
+    })
+    setAccessToken(result.accessToken)
+    return result
+  },
 
-  login: (data: { email: string; password: string }) =>
-    apiFetch<{ user: User }>('/api/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  login: async (data: { email: string; password: string }) => {
+    const result = await apiFetch<{ user: User; accessToken: string }>('/api/auth/login', {
+      method: 'POST', body: JSON.stringify(data),
+    })
+    setAccessToken(result.accessToken)
+    return result
+  },
 
-  logout: () =>
-    apiFetch<{ success: boolean }>('/api/auth/logout', { method: 'DELETE' }),
+  logout: async () => {
+    const result = await apiFetch<{ success: boolean }>('/api/auth/logout', { method: 'DELETE' })
+    setAccessToken(null)
+    return result
+  },
 
-  me: () =>
-    apiFetch<{ user: User }>('/api/auth/me'),
+  me: () => apiFetch<{ user: User }>('/api/auth/me'),
 }
 
 // Tasks
 export const tasksApi = {
-  list: () =>
-    apiFetch<{ tasks: Task[] }>('/api/tasks'),
-
+  list: () => apiFetch<{ tasks: Task[] }>('/api/tasks'),
   create: (data: Partial<Task>) =>
     apiFetch<{ task: Task }>('/api/tasks', { method: 'POST', body: JSON.stringify(data) }),
-
   update: (id: string, data: Partial<Task>) =>
     apiFetch<{ task: Task }>(`/api/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-
   delete: (id: string) =>
     apiFetch<{ success: boolean }>(`/api/tasks/${id}`, { method: 'DELETE' }),
 }
