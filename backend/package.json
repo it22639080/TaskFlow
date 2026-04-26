@@ -1,15 +1,12 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
-   "scripts": {
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "ts-node src/index.ts"
+    "start": "node dist/index.js"
   },
-  "keywords": [],
-  "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
@@ -24,9 +21,7 @@
     "mongoose": "^9.5.0",
     "node-cron": "^4.2.1",
     "nodemailer": "^8.0.6",
-    "zod": "^4.3.6"
-  },
-  "devDependencies": {
+    "zod": "^4.3.6",
     "@types/bcryptjs": "^2.4.6",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
@@ -38,5 +33,6 @@
     "nodemon": "^3.1.14",
     "ts-node": "^10.9.2",
     "typescript": "^6.0.3"
-  }
+  },
+  "devDependencies": {}
 }
