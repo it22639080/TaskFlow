@@ -1,11 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   async headers() {
     return [
       {
-         eslint: {
-    ignoreDuringBuilds: true,
-  },
+         
         source: '/(.*)',
         headers: [
           { key: 'X-Frame-Options', value: 'DENY' },
