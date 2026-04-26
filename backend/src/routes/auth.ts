@@ -23,8 +23,8 @@ const loginSchema = z.object({
 
 const cookieOpts = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'strict' as const,
+  secure: true,
+  sameSite: 'none' as const,
 }
 
 // POST /api/auth/register
@@ -58,7 +58,10 @@ router.post('/register', async (req: Request, res: Response) => {
 
     res.cookie('access_token', accessToken, { ...cookieOpts, maxAge: 15 * 60 * 1000 })
     res.cookie('refresh_token', refreshToken, { ...cookieOpts, maxAge: 7 * 24 * 60 * 60 * 1000 })
-    res.status(201).json({ user: { id: user._id, name: user.name, email: user.email } })
+    res.status(201).json({
+      user: { id: user._id, name: user.name, email: user.email },
+      accessToken,
+    })
   } catch {
     res.status(500).json({ error: 'Internal server error' })
   }
@@ -90,7 +93,10 @@ router.post('/login', async (req: Request, res: Response) => {
 
     res.cookie('access_token', accessToken, { ...cookieOpts, maxAge: 15 * 60 * 1000 })
     res.cookie('refresh_token', refreshToken, { ...cookieOpts, maxAge: 7 * 24 * 60 * 60 * 1000 })
-    res.json({ user: { id: user._id, name: user.name, email: user.email } })
+    res.json({
+      user: { id: user._id, name: user.name, email: user.email },
+      accessToken,
+    })
   } catch {
     res.status(500).json({ error: 'Internal server error' })
   }
@@ -110,7 +116,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
     const accessToken = signAccessToken({ userId: payload.userId, email: payload.email })
     res.cookie('access_token', accessToken, { ...cookieOpts, maxAge: 15 * 60 * 1000 })
-    res.json({ success: true })
+    res.json({ success: true, accessToken })
   } catch {
     res.status(401).json({ error: 'Invalid refresh token' })
   }
@@ -121,8 +127,8 @@ router.delete('/logout', async (req: Request, res: Response) => {
   try {
     const token = req.cookies?.refresh_token
     if (token) await RefreshToken.deleteMany({ token })
-    res.clearCookie('access_token')
-    res.clearCookie('refresh_token')
+    res.clearCookie('access_token', cookieOpts)
+    res.clearCookie('refresh_token', cookieOpts)
     res.json({ success: true })
   } catch {
     res.status(500).json({ error: 'Internal server error' })
@@ -132,8 +138,14 @@ router.delete('/logout', async (req: Request, res: Response) => {
 // GET /api/auth/me
 router.get('/me', async (req: Request, res: Response) => {
   try {
-    const token = req.cookies?.access_token
+    // check cookie first, then Authorization header
+    let token = req.cookies?.access_token
+    if (!token) {
+      const authHeader = req.headers.authorization
+      if (authHeader?.startsWith('Bearer ')) token = authHeader.slice(7)
+    }
     if (!token) { res.status(401).json({ error: 'Unauthorized' }); return }
+
     const payload = verifyAccessToken(token)
     const user = await User.findById(payload.userId).select('-passwordHash')
     if (!user) { res.status(404).json({ error: 'User not found' }); return }
